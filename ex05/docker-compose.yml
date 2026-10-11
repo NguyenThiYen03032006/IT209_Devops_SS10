@@ -1,0 +1,51 @@
+```yaml
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: ex5-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    image: python:3.12-alpine
+    container_name: ex5-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT}:8080"
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - backend-net
+    command:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache postgresql-client busybox-extras
+        python3 -m http.server 8080 --bind 0.0.0.0
+
+networks:
+  backend-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+```
